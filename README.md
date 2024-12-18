@@ -29,7 +29,7 @@ Without ever needing to go into the games files! (launcher comes with the latest
 <br>
 
 ## How to use
-1. Download [portal2_vr_launcher.exe]() and run the executable
+1. Download [portal2_vr_launcher.exe](https://github.com/EPOS05/portal2vr_launcher/releases/latest) and run the executable
 2. Go into the settings and select your Portal 2 installation folder
 3. Once selected, go to the main menu and click **Install**
 4. After it is done installing, press **Launch Portal 2 VR** and the game should launch with the VR Mod enabled
@@ -38,7 +38,7 @@ Without ever needing to go into the games files! (launcher comes with the latest
 
 ## Build instructions
 1. Clone this repository
-2. Run ``` pyinstaller main.spec ``` (make sure you have the required dependencies)
+2. Run ``` pyinstaller build.spec ``` (make sure you have the required dependencies)
 3. portal2_vr_launcher.exe should be located in the dist folder
 
 <br>
