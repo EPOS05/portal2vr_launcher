@@ -38,7 +38,7 @@ Without ever needing to go into the games files! (launcher comes with the latest
 
 ## Build instructions
 1. Clone this repository
-2. Run pyinstaller main.spec (make sure you have the required dependencies)
+2. Run ``` pyinstaller main.spec ``` (make sure you have the required dependencies)
 3. portal2_vr_launcher.exe should be located in the dist folder
 
 <br>
