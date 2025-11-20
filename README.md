@@ -24,7 +24,6 @@ Without ever needing to go into the games files! (launcher comes with the latest
 <br><br>
 ![Portal 2 Launcher - Screenshot 1](imgs/ss1.png "Portal 2 Launcher - Screenshot 1")
 ![Portal 2 Launcher - Screenshot 2](imgs/ss2.png "Portal 2 Launcher - Screenshot 2")
-![Portal 2 Launcher - Screenshot 3](imgs/ss3.png "Portal 2 Launcher - Screenshot 3")
 
 <br>
 

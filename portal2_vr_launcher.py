@@ -2,327 +2,367 @@ import os
 import sys
 import shutil
 import subprocess
+import threading
 import tkinter as tk
-from tkinter import messagebox, scrolledtext, filedialog
+from tkinter import scrolledtext, filedialog
 import webbrowser
+import requests
+import zipfile
+import io
+import json
 
-# Determine the base path of the application dynamically
-if getattr(sys, 'frozen', False):
-    base_dir = sys._MEIPASS
+LAUNCHER_VERSION = "2.0"
+
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
 else:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Paths dynamically based on the base directory
-mod_dir = os.path.join(base_dir, "modfiles")
-config_file = os.path.join(os.path.dirname(sys.argv[0]), "portal2_path.txt")
+MOD_DIR = os.path.join(BASE_DIR, "modfiles")
+CONFIG_FILE = os.path.join(BASE_DIR, "settings.json")
+ICON_PATH = os.path.join(BASE_DIR, "icon.ico")
+LAUNCH_OPTIONS = "-insecure -window -novid +mat_motion_blur_percent_of_screen_max 0 +mat_queue_mode 0 +mat_vsync 0 +mat_antialias 0 +mat_grain_scale_override 0 -width 1280 -height 720"
 
-# Global variables
-show_console = False
-dark_mode = True
+class SettingsManager:
+    def __init__(self):
+        self.show_console = True
+        self.dark_mode = True
+        self.portal2_path = ""
+        self.saved_mod_version = ""
+        self.installed_files = []
+        self.verifymodfiles = []
+        self.load()
 
-# Path to the icon file
-icon_path = os.path.join(base_dir, "icon.ico")
-
-# Function to read the Portal 2 installation path from the config file
-def read_portal2_path():
-    if os.path.exists(config_file):
-        with open(config_file, "r") as f:
-            return f.read().strip()
-    return ""
-
-# Function to write the Portal 2 installation path to the config file
-def save_portal2_path(path):
-    with open(config_file, "w") as f:
-        f.write(path)
-
-# Get the Portal 2 installation folder from the config file
-portal2_path = read_portal2_path()
-portal2_exe = os.path.join(portal2_path, "portal2.exe")
-mod_installed_flag = os.path.join(portal2_path, "VR")
-
-launch_options = "-insecure -window -novid +mat_motion_blur_percent_of_screen_max 0 +mat_queue_mode 0 +mat_vsync 0 +mat_antialias 0 +mat_grain_scale_override 0 -width 1280 -height 720"
-
-# Function to check if the mod is installed
-def is_mod_installed():
-    return os.path.exists(mod_installed_flag)
-
-# Function to log messages in the console
-def log_console(message):
-    if show_console:
-        console_text.config(state=tk.NORMAL)
-        console_text.insert(tk.END, f"{message}\n")
-        console_text.config(state=tk.DISABLED)
-        console_text.see(tk.END)
-
-# Function to install the mod
-def install_mod():
-    if not portal2_path:
-        messagebox.showerror("Error", "Portal 2 installation folder is not set. Please configure it in Settings.")
-        return
-    try:
-        bin_dir = os.path.join(portal2_path, "bin")
-        os.makedirs(bin_dir, exist_ok=True)
-
-        for file in ["d3d9.dll", "openvr_api.dll"]:
-            src = os.path.join(mod_dir, "bin", file)
-            dest = os.path.join(bin_dir, file)
-            shutil.copy2(src, dest)
-            log_console(f"Copied {file} to: {dest}")
-
-        for folder in ["portal2_dlc3", "VR"]:
-            src = os.path.join(mod_dir, folder)
-            dest = os.path.join(portal2_path, folder)
-            if os.path.exists(src):
-                shutil.copytree(src, dest, dirs_exist_ok=True)
-                log_console(f"Copied {folder} to: {dest}")
-
-        messagebox.showinfo("Install", "Portal 2 VR Mod has been installed.")
-    except Exception as e:
-        messagebox.showerror("Error", f"Installation failed: {e}")
-        log_console(f"Installation failed: {e}")
-    finally:
-        update_status()
-
-# Function to uninstall the mod
-def uninstall_mod():
-    if not portal2_path:
-        messagebox.showerror("Error", "Portal 2 installation folder is not set. Please configure it in Settings.")
-        return
-    try:
-        for path in ["bin/d3d9.dll", "bin/openvr_api.dll", "portal2_dlc3", "VR"]:
-            full_path = os.path.join(portal2_path, path)
-            if os.path.isdir(full_path):
-                shutil.rmtree(full_path, ignore_errors=True)
-                log_console(f"Removed directory: {full_path}")
-            elif os.path.isfile(full_path):
-                os.remove(full_path)
-                log_console(f"Removed file: {full_path}")
-
-        messagebox.showinfo("Uninstall", "Portal 2 VR Mod has been uninstalled.")
-    except Exception as e:
-        messagebox.showerror("Error", f"Uninstallation failed: {e}")
-        log_console(f"Uninstallation failed: {e}")
-    finally:
-        update_status()
-
-# Function to launch Portal 2 with the VR mod
-def launch_portal2_vr():
-    if not is_mod_installed():
-        messagebox.showwarning("Launch Error", "The mod is not yet installed. Please install it first.")
-        log_console("Launch failed: Mod is not installed.")
-        return
-
-    try:
-        subprocess.Popen([portal2_exe] + launch_options.split())
-        log_console("Launching Portal 2 VR...")
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to launch Portal 2: {e}")
-        log_console(f"Failed to launch Portal 2: {e}")
-
-# Function to update the UI based on mod status
-def update_status():
-    if is_mod_installed():
-        status_label.config(text="Mod Status: Installed")
-        install_button.config(text="Uninstall", command=uninstall_mod)
-        launch_button.config(state=tk.NORMAL)
-    else:
-        status_label.config(text="Mod Status: Uninstalled")
-        install_button.config(text="Install", command=install_mod)
-        launch_button.config(state=tk.DISABLED)
-
-# Function to open the folder selection dialog
-def select_folder():
-    global portal2_path, portal2_exe, mod_installed_flag
-    selected_folder = filedialog.askdirectory(title="Select Portal 2 Installation Folder")
-    if selected_folder:
-        portal2_path = selected_folder
-        portal2_exe = os.path.join(portal2_path, "portal2.exe")
-        mod_installed_flag = os.path.join(portal2_path, "VR")
-        save_portal2_path(selected_folder)
-        messagebox.showinfo("Success", f"Portal 2 installation folder set to:\n{selected_folder}")
-        update_status()
-
-# Function to apply the chosen theme (dark/light) to all relevant widgets
-def apply_theme(target=None):
-    bg_color = "#333" if dark_mode else "SystemButtonFace"
-    fg_color = "white" if dark_mode else "black"
-    button_color = "#444" if dark_mode else "SystemButtonFace"
-    button_active_color = "#555" if dark_mode else "SystemButtonFace"
-    text_bg_color = "#222" if dark_mode else "white"
-    text_fg_color = "white" if dark_mode else "black"
-    
-    # Apply to the target window and recursively to child widgets
-    target = target or root
-    target.configure(bg=bg_color)
-
-    for widget in target.winfo_children():
+    def load(self):
+        if not os.path.exists(CONFIG_FILE):
+            self.save()
         try:
-            # Configure common widget types
-            if isinstance(widget, (tk.Frame, tk.LabelFrame)):
-                widget.configure(bg=bg_color)
-                apply_theme(widget)  # Recurse into child frames
-            elif isinstance(widget, tk.Label):
-                widget.configure(bg=bg_color, fg=fg_color)
-            elif isinstance(widget, tk.Button):
-                widget.configure(
-                    bg=button_color,
-                    fg=fg_color,
-                    activebackground=button_active_color,
-                    activeforeground=fg_color
-                )
-            elif isinstance(widget, tk.Checkbutton):
-                widget.configure(
-                    bg=bg_color,
-                    fg=fg_color,
-                    selectcolor=bg_color,
-                    activebackground=bg_color,
-                    activeforeground=fg_color
-                )
-            elif isinstance(widget, (tk.Text, scrolledtext.ScrolledText)):
-                widget.configure(
-                    bg=text_bg_color,
-                    fg=text_fg_color,
-                    insertbackground=fg_color
-                )
-            elif isinstance(widget, tk.Toplevel):
-                apply_theme(widget)  # Apply theme to new windows
-        except tk.TclError:
-            # Handle unsupported widget types gracefully
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.show_console = data.get("show_console", True)
+            self.dark_mode = data.get("dark_mode", True)
+            self.portal2_path = data.get("portal2_path", "")
+            self.saved_mod_version = data.get("saved_mod_version", "")
+            self.installed_files = data.get("installed_files", [])
+            self.verifymodfiles = data.get("verifymodfiles", [])
+        except Exception:
             pass
 
-# Function to toggle dark mode
-def toggle_dark_mode():
-    global dark_mode
-    dark_mode = not dark_mode
-    dark_mode_checkbox_var.set(dark_mode)
-    apply_theme()  # Refresh the theme across the entire application
+    def save(self):
+        try:
+            data = {
+                "show_console": self.show_console,
+                "dark_mode": self.dark_mode,
+                "portal2_path": self.portal2_path,
+                "saved_mod_version": self.saved_mod_version,
+                "installed_files": self.installed_files,
+                "verifymodfiles": self.verifymodfiles
+            }
+            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+        except Exception:
+            pass
 
-# Function to open the help window
-def show_help():
-    help_window = tk.Toplevel(root)
-    help_window.title("Help")
-    help_window.geometry("400x180")
-    help_window.iconbitmap(icon_path)
+class ModManager:
+    def __init__(self, settings, gui_log, gui_log_success, gui_update_status):
+        self.settings = settings
+        self.gui_log = gui_log
+        self.gui_log_success = gui_log_success
+        self.gui_update_status = gui_update_status
 
-    tk.Label(
-        help_window,
-        text="Installation Steps:\n"
-             "1. Select your Portal 2 installation folder from the settings.\n"
-             "2. Run this executable to launch or install/uninstall the mod.\n",
-        wraplength=380,
-        justify="left"
-    ).pack(pady=2)
+    def scan_modfiles(self):
+        out = []
+        if not os.path.isdir(MOD_DIR):
+            return out
+        for r, dirs, files in os.walk(MOD_DIR):
+            for f in files:
+                rel = os.path.relpath(os.path.join(r,f), MOD_DIR).replace("\\","/")
+                out.append(rel)
+        self.settings.verifymodfiles = out
+        self.settings.save()
+        return out
 
-    tk.Label(
-        help_window,
-        text="Github:",
-    ).pack(pady=2)
+    def detect_installed_modfiles(self):
+        installed = []
+        if self.settings.portal2_path and self.settings.verifymodfiles:
+            for f in self.settings.verifymodfiles:
+                if os.path.isfile(os.path.join(self.settings.portal2_path, f)):
+                    installed.append(f)
+        self.settings.installed_files = installed
+        self.settings.save()
+        return installed
 
-    tk.Button(
-        help_window,
-        text="Launcher by EPOS",
-        command=lambda: webbrowser.open("https://github.com/EPOS05/portal2vr_launcher"),
-    ).pack(pady=0)
+    def is_mod_installed(self):
+        if not self.settings.portal2_path:
+            return False
+        check_files = self.settings.installed_files if self.settings.installed_files else self.settings.verifymodfiles
+        return bool(check_files) and all(os.path.isfile(os.path.join(self.settings.portal2_path, f)) for f in check_files)
 
-    tk.Button(
-        help_window,
-        text="VR Mod by Gistix",
-        command=lambda: webbrowser.open("https://github.com/Gistix/portal2vr"),
-    ).pack(pady=5)
-    
-    tk.Label(
-        help_window,
-        text="Launcher - v1.0  |  VR Mod - v0.2.0-preview.1",
-    ).pack(pady=0)
+    def install_mod(self):
+        if not self.settings.portal2_path:
+            self.gui_log("Install failed: Portal 2 folder not set.")
+            return
+        if not self.settings.verifymodfiles:
+            self.gui_log("Install failed: No mod files found. Run Update Mod Files first.")
+            return
+        try:
+            installed = []
+            for f in self.settings.verifymodfiles:
+                src = os.path.join(MOD_DIR, f)
+                dst = os.path.join(self.settings.portal2_path, f)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(src, dst)
+                installed.append(f)
+                self.gui_log(f"Copied {f}")
+            self.settings.installed_files = installed
+            self.settings.save()
+            self.gui_log_success("Install successful.")
+            self.gui_update_status()
+        except Exception as e:
+            self.gui_log(f"Install failed: {e}")
 
-    apply_theme(help_window)
+    def uninstall_mod(self):
+        if not self.settings.portal2_path:
+            self.gui_log("Uninstall failed: Portal 2 folder not set.")
+            return
+        try:
+            for f in self.settings.installed_files:
+                full = os.path.join(self.settings.portal2_path, f)
+                if os.path.isfile(full):
+                    os.remove(full)
+                    self.gui_log(f"Removed {f}")
+            self.settings.installed_files = []
+            self.settings.save()
+            self.gui_log_success("Uninstall successful.")
+            self.gui_update_status()
+        except Exception as e:
+            self.gui_log(f"Uninstall failed: {e}")
 
-# Function to toggle the console visibility
-def show_console_toggle():
-    global show_console
-    show_console = not show_console
-    console_checkbox_var.set(show_console)
-    if show_console:
-        console_text.pack(pady=5)
-        root.geometry("315x450")  # Adjust window height when console is shown
-    else:
-        console_text.pack_forget()
-        root.geometry("315x180")  # Reset to original height
+    def launch_portal2_vr(self):
+        if not self.is_mod_installed():
+            self.gui_log("Launch failed: Mod not installed.")
+            return
+        try:
+            subprocess.Popen([os.path.join(self.settings.portal2_path, "portal2.exe")] + LAUNCH_OPTIONS.split())
+            self.gui_log("Launching Portal 2 VR")
+        except Exception as e:
+            self.gui_log(f"Launch error: {e}")
 
-# Function to open the settings window
-def open_settings():
-    settings_window = tk.Toplevel(root)
-    settings_window.title("Settings")
-    settings_window.geometry("400x180")
-    settings_window.iconbitmap(icon_path)
-    
-    def update_folder_label():
-        folder_text = portal2_path if portal2_path else "Not Set"
-        folder_label.config(text=f"{folder_text}")
+    def download_latest_mod_worker(self):
+        self.gui_log("Fetching releases from GitHub...")
+        url = "https://api.github.com/repos/Gistix/portal2vr/releases"
+        try:
+            r = requests.get(url, timeout=15)
+            releases = r.json()
+            if not releases:
+                self.gui_log("No releases found on GitHub.")
+                return
+            latest = releases[0]
+            tag = latest.get("tag_name","unknown")
+            assets = latest.get("assets", [])
+            zip_asset = next((a for a in assets if a.get("name","").lower().endswith(".zip")), None)
+            if not zip_asset:
+                self.gui_log("No ZIP asset found in latest release.")
+                return
+            name = zip_asset.get("name","mod.zip")
+            dl_url = zip_asset.get("browser_download_url")
+            self.gui_log(f"Downloading {name} ...")
+            resp = requests.get(dl_url, stream=True, timeout=30)
+            total = int(resp.headers.get("content-length") or 0)
+            buf = io.BytesIO()
+            read = 0
+            for chunk in resp.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+                buf.write(chunk)
+                read += len(chunk)
+                pct = int(read / total * 100) if total else 0
+                self.gui_log(f"Download progress: {pct}%")
+            if os.path.isdir(MOD_DIR):
+                shutil.rmtree(MOD_DIR)
+            os.makedirs(MOD_DIR, exist_ok=True)
+            self.gui_log("Extracting archive...")
+            with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as z:
+                members = z.namelist()
+                for i, member in enumerate(members, start=1):
+                    z.extract(member, MOD_DIR)
+                    pct = int(i / len(members) * 100)
+                    self.gui_log(f"Extract progress: {pct}%")
+            self.settings.saved_mod_version = tag
+            self.scan_modfiles()
+            self.detect_installed_modfiles()
+            self.settings.save()
+            self.gui_log_success(f"Downloaded and extracted mod {tag}")
+            self.gui_update_status()
+        except Exception as e:
+            self.gui_log(f"Mod update failed: {e}")
 
-    tk.Checkbutton(
-        settings_window,
-        text="Show Console",
-        variable=console_checkbox_var,
-        command=show_console_toggle,
-    ).pack(pady=5)
+    def start_download_latest_mod(self):
+        t = threading.Thread(target=self.download_latest_mod_worker, daemon=True)
+        t.start()
 
-    tk.Checkbutton(
-        settings_window,
-        text="Enable Dark Mode",
-        variable=dark_mode_checkbox_var,
-        command=toggle_dark_mode,
-    ).pack(pady=5)
 
-    tk.Button(
-        settings_window,
-        text="Help",
-        command=show_help,
-    ).pack(pady=5)
+class VRLauncherApp:
+    def __init__(self):
+        self.settings = SettingsManager()
+        self.root = tk.Tk()
+        self.root.title("Portal 2 VR Launcher")
+        try:
+            self.root.iconbitmap(ICON_PATH)
+        except Exception:
+            pass
+        self.mod_manager = ModManager(self.settings, self.gui_log, self.gui_log_success, self.update_status)
+        self.setup_ui()
+        self.apply_theme_all(self.root)
+        if not self.settings.verifymodfiles:
+            self.mod_manager.scan_modfiles()
+        if self.settings.portal2_path:
+            self.mod_manager.detect_installed_modfiles()
+        self.update_status()
 
-    tk.Button(
-        settings_window,
-        text="Select Portal 2 Folder",
-        command=select_folder,
-    ).pack(pady=5)
+    def gui_log(self, msg):
+        self.root.after(0, lambda: self._append_console(msg))
 
-    # Display the current Portal 2 installation folder
-    folder_label = tk.Label(settings_window, text="")
-    folder_label.pack(pady=0)
-    update_folder_label()
+    def gui_log_success(self, msg):
+        self.root.after(0, lambda: (self._append_console("-"*24), self._append_console(msg), self._append_console("-"*24)))
 
-    apply_theme(settings_window)  # Apply dark mode to the settings window
+    def _append_console(self, text):
+        self.console_text.config(state=tk.NORMAL)
+        self.console_text.insert(tk.END, text + "\n")
+        self.console_text.config(state=tk.DISABLED)
+        self.console_text.see(tk.END)
 
-# Main window
-root = tk.Tk()
-root.title("Portal 2 VR Launcher")
-root.geometry("315x180")
-root.iconbitmap(icon_path)
+    def setup_ui(self):
+        self.root.geometry("315x450" if self.settings.show_console else "315x180")
+        tk.Label(self.root, text="Portal 2 VR Launcher", font=("Arial", 14)).pack()
+        self.status_label = tk.Label(self.root, text="Mod Status: Unknown")
+        self.status_label.pack()
+        frame = tk.Frame(self.root)
+        frame.pack(pady=20)
+        self.launch_button = tk.Button(frame, text="Launch Portal 2 VR", height=2, command=self.mod_manager.launch_portal2_vr, state=tk.DISABLED)
+        self.install_button = tk.Button(frame, text="Install", height=2, command=self.mod_manager.install_mod)
+        self.settings_button = tk.Button(frame, text="Settings", width=10, height=4, command=self.open_settings)
+        self.launch_button.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.install_button.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+        self.settings_button.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=2, pady=2)
+        self.console_text = scrolledtext.ScrolledText(self.root, wrap=tk.WORD)
+        self.console_text.config(state=tk.DISABLED)
+        if self.settings.show_console:
+            self.console_text.pack(pady=5)
 
-console_checkbox_var = tk.BooleanVar(value=show_console)
-dark_mode_checkbox_var = tk.BooleanVar(value=dark_mode)
+    def open_settings(self):
+        self.settings_win = tk.Toplevel(self.root)
+        self.settings_win.title("Settings")
+        self.settings_win.geometry("450x450")
+        try:
+            self.settings_win.iconbitmap(ICON_PATH)
+        except Exception:
+            pass
+        tk.Label(self.settings_win, text="Settings", font=("Arial", 16)).pack(pady=(5,2))
+        tk.Label(self.settings_win, text="Guide:\n1. Choose your Portal 2 installation folder.\n2. Install or uninstall the VR mod.\n3. Launch the game through the main menu.", justify="left").pack(pady=(0,5))
+        grid = tk.Frame(self.settings_win)
+        grid.pack(pady=5)
+        self.console_btn = tk.Button(grid, text=("Hide Console" if self.settings.show_console else "Show Console"), width=20, height=2, command=self.toggle_console)
+        self.console_btn.grid(row=0, column=0, padx=2, pady=2)
+        self.dark_btn = tk.Button(grid, text=("Disable Dark Mode" if self.settings.dark_mode else "Enable Dark Mode"), width=20, height=2, command=self.toggle_dark_mode)
+        self.dark_btn.grid(row=0, column=1, padx=2, pady=2)
+        tk.Button(grid, text="Select Portal 2 Folder", width=20, height=2, command=self.select_folder).grid(row=1, column=0, padx=2, pady=2)
+        tk.Button(grid, text="Update Mod Files", width=20, height=2, command=self.mod_manager.start_download_latest_mod).grid(row=1, column=1, padx=2, pady=2)
+        tk.Label(self.settings_win, text="Portal 2 folder:").pack(pady=(10,0))
+        self.folder_label = tk.Label(self.settings_win, text=(self.settings.portal2_path if self.settings.portal2_path else "Portal 2 folder not set"))
+        self.folder_label.pack(pady=(0,10))
+        tk.Label(self.settings_win, text=f"Launcher by EPOS - v{LAUNCHER_VERSION}").pack(pady=(0,2))
+        self.mod_version_label = tk.Label(self.settings_win, text=f"VR Mod by Gistix - {self.settings.saved_mod_version if self.settings.saved_mod_version else 'unknown'}")
+        self.mod_version_label.pack(pady=(0,10))
+        gh = tk.Frame(self.settings_win)
+        gh.pack(pady=5)
+        tk.Button(gh, text="Launcher on GitHub", width=20, height=2, command=lambda: webbrowser.open("https://github.com/EPOS05/portal2vr_launcher")).grid(row=0, column=0, padx=2)
+        tk.Button(gh, text="Mod on GitHub", width=20, height=2, command=lambda: webbrowser.open("https://github.com/Gistix/portal2vr")).grid(row=0, column=1, padx=2)
+        self.apply_theme_all(self.settings_win)
+        self.refresh_setting_buttons()
 
-title_label = tk.Label(root, text="Portal 2 VR Launcher", font=("Arial", 14))
-title_label.pack()
+    def toggle_dark_mode(self):
+        self.settings.dark_mode = not self.settings.dark_mode
+        self.settings.save()
+        self.apply_theme_all(self.root)
+        if hasattr(self, 'settings_win') and self.settings_win.winfo_exists():
+            self.apply_theme_all(self.settings_win)
+        self.refresh_setting_buttons()
 
-status_label = tk.Label(root, text="Mod Status: Unknown")
-status_label.pack()
+    def toggle_console(self):
+        self.settings.show_console = not self.settings.show_console
+        self.settings.save()
+        if self.settings.show_console:
+            self.console_text.pack(pady=5)
+            self.root.geometry("315x450")
+        else:
+            self.console_text.pack_forget()
+            self.root.geometry("315x180")
+        self.refresh_setting_buttons()
 
-button_frame = tk.Frame(root)
-button_frame.pack(pady=20)
+    def refresh_setting_buttons(self):
+        try:
+            self.console_btn.config(text="Hide Console" if self.settings.show_console else "Show Console")
+            self.dark_btn.config(text="Disable Dark Mode" if self.settings.dark_mode else "Enable Dark Mode")
+        except Exception:
+            pass
 
-launch_button = tk.Button(button_frame, text="Launch Portal 2 VR", height=2, command=launch_portal2_vr, state=tk.DISABLED)
-install_button = tk.Button(button_frame, text="Install/Uninstall", height=2, command=install_mod)
-settings_button = tk.Button(button_frame, text=u"\u2699", width=5, height=5, command=open_settings)
+    def apply_theme_all(self, widget):
+        bg = "#333" if self.settings.dark_mode else "SystemButtonFace"
+        fg = "white" if self.settings.dark_mode else "black"
+        btn_bg = "#444" if self.settings.dark_mode else "SystemButtonFace"
+        btn_act = "#555" if self.settings.dark_mode else "SystemButtonFace"
+        txt_bg = "#222" if self.settings.dark_mode else "white"
+        txt_fg = "white" if self.settings.dark_mode else "black"
+        try:
+            if isinstance(widget, (tk.Tk, tk.Toplevel, tk.Frame, tk.LabelFrame)):
+                widget.configure(bg=bg)
+            elif isinstance(widget, tk.Label):
+                widget.configure(bg=bg, fg=fg)
+            elif isinstance(widget, tk.Button):
+                widget.configure(bg=btn_bg, fg=fg, activebackground=btn_act)
+            elif isinstance(widget, (tk.Text, scrolledtext.ScrolledText)):
+                widget.configure(bg=txt_bg, fg=txt_fg, insertbackground=fg)
+        except Exception:
+            pass
+        for child in widget.winfo_children():
+            self.apply_theme_all(child)
 
-launch_button.grid(row=0, column=0, sticky="nsew")
-install_button.grid(row=1, column=0, sticky="nsew")
-settings_button.grid(row=0, column=1, rowspan=2, sticky="nsew")
+    def select_folder(self):
+        folder = filedialog.askdirectory(title="Select Portal 2 Folder")
+        if folder:
+            self.settings.portal2_path = folder
+            self.settings.save()
+            self.mod_manager.detect_installed_modfiles()
+            self.update_status()
+            self.refresh_folder_label()
 
-console_text = scrolledtext.ScrolledText(root, wrap=tk.WORD)
-if show_console:
-    console_text.pack()
+    def refresh_folder_label(self):
+        try:
+            self.folder_label.config(text=(self.settings.portal2_path if self.settings.portal2_path else "Portal 2 folder not set"))
+        except Exception:
+            pass
 
-update_status()
-apply_theme()
-root.mainloop()
+    def refresh_mod_label(self):
+        try:
+            self.mod_version_label.config(text=f"VR Mod by Gistix - {self.settings.saved_mod_version if self.settings.saved_mod_version else 'unknown'}")
+        except Exception:
+            pass
+
+    def update_status(self):
+        if self.mod_manager.is_mod_installed():
+            self.status_label.config(text="Mod Status: Installed")
+            self.install_button.config(text="Uninstall", command=self.mod_manager.uninstall_mod)
+            self.launch_button.config(state=tk.NORMAL)
+        else:
+            self.status_label.config(text="Mod Status: Uninstalled")
+            self.install_button.config(text="Install", command=self.mod_manager.install_mod)
+            self.launch_button.config(state=tk.DISABLED)
+        self.refresh_mod_label()
+
+    def run(self):
+        self.root.mainloop()
+
+if __name__ == "__main__":
+    app = VRLauncherApp()
+    app.run()

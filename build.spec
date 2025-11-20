@@ -5,7 +5,7 @@ a = Analysis(
     ['portal2_vr_launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('modfiles', 'modfiles'), ('icon.ico', '.')],
+    datas=[('icon.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

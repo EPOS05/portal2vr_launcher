@@ -1,0 +1,23 @@
+{
+    "show_console": true,
+    "dark_mode": true,
+    "portal2_path": "",
+    "saved_mod_version": "v0.2.0-preview.1",
+    "installed_files": [],
+    "verifymodfiles": [
+        "Uninstall_Portal_2_VR_Mod.cmd",
+        "bin/d3d9.dll",
+        "bin/openvr_api.dll",
+        "portal2_dlc3/pak01_dir.vpk",
+        "portal2_dlc3/UpdateSoundCache.cmd",
+        "portal2_dlc3/maps/soundcache/_master.cache",
+        "VR/config.txt",
+        "VR/manifest.vrmanifest",
+        "VR/portal2vr_capsule_main.png",
+        "VR/portal2vr_portrait_main.png",
+        "VR/SteamVRActionManifest/action_manifest.json",
+        "VR/SteamVRActionManifest/bindings_knuckles.json",
+        "VR/SteamVRActionManifest/bindings_oculus_touch.json",
+        "VR/SteamVRActionManifest/bindings_vive_cosmos_controller.json"
+    ]
+}
