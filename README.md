@@ -28,10 +28,11 @@ Without ever needing to go into the games files! (launcher comes with the latest
 <br>
 
 ## How to use
-1. Download [portal2_vr_launcher.exe](https://github.com/EPOS05/portal2vr_launcher/releases/latest) and run the executable
-2. Go into the settings and select your Portal 2 installation folder
-3. Once selected, go to the main menu and click **Install**
-4. After it is done installing, press **Launch Portal 2 VR** and the game should launch with the VR Mod enabled
+1. Download the latest [portal2_vr_launcher.zip](https://github.com/EPOS05/portal2vr_launcher/releases/latest) and extract the archive
+2. Run the executable
+3. Go into the settings and select your Portal 2 installation folder
+4. Once selected, go to the main menu and click **Install**
+5. After it is done installing, press **Launch Portal 2 VR** and the game should launch with the VR Mod enabled
 
 <br>
 
