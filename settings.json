@@ -4,6 +4,7 @@
     "portal2_path": "",
     "saved_mod_version": "v0.2.0-preview.1",
     "installed_files": [],
+    "installed_folders_overwritten": {},
     "verifymodfiles": [
         "Uninstall_Portal_2_VR_Mod.cmd",
         "bin/d3d9.dll",
@@ -19,5 +20,6 @@
         "VR/SteamVRActionManifest/bindings_knuckles.json",
         "VR/SteamVRActionManifest/bindings_oculus_touch.json",
         "VR/SteamVRActionManifest/bindings_vive_cosmos_controller.json"
-    ]
+    ],
+    "launch_options": "-insecure -window -novid +mat_motion_blur_percent_of_screen_max 0 +mat_queue_mode 0 +mat_vsync 0 +mat_antialias 0 +mat_grain_scale_override 0 -width 1280 -height 720"
 }
