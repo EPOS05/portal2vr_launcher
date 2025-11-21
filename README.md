@@ -49,6 +49,6 @@ Make sure you check out the original [Portal 2 VR Github Page](https://github.co
 <br>
 
 ## Support me
-<a href='https://ko-fi.com/epos05'><img height='35' style='border:0px;height:46px;' src='https://ko-fi.com/LandingPageAssets/img/logomarkLogo2024.png' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+<a href='https://ko-fi.com/epos05'><img style='height:50px;width:50px;' src='https://ko-fi.com/LandingPageAssets/img/logomarkLogo2024.png' border='0' alt='Buy Me a Coffee at ko-fi.com' />Buy Me a Coffee at ko-fi.com</a>
 <br>
-<a href='https://x.com/RealEPOS'><img style='border:0px;height:30px;' src='https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png' border='0' alt='Follow me on X' />Follow me on X</a>
+<a href='https://x.com/RealEPOS'><img style='height:50px;width:50px;' src='https://about.x.com/content/dam/about-twitter/x/brand-toolkit/logo-black.png.twimg.1920.png' border='0' alt='Follow me on X' />Follow me on X</a>
